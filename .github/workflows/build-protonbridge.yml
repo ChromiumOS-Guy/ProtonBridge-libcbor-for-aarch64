@@ -32,7 +32,7 @@ jobs:
         run: |
           cd bridge-source
           # Ensure you use the exact filename provided in your repo
-          git apply ../this-repo/arm64.patch
+          git apply ../this-repo/proton-bridge-arm64-linux.patch
 
       - name: Install dependencies
         run: |
