@@ -1,4 +1,4 @@
-name: Build Proton Bridge
+name: Build Proton Bridge (Native ARM64)
 
 on:
   push:
@@ -6,15 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - arch: amd64
-            goarch: amd64
-          - arch: arm64
-            goarch: arm64
+  build-arm64:
+    # Use GitHub's native ARM64 runner
+    runs-on: ubuntu-24.04-arm
     
     steps:
       - name: Checkout main code
@@ -28,21 +22,15 @@ jobs:
         with:
           path: this-repo
 
-      - name: Setup environment and apply patch
+      - name: Apply patch
         run: |
           cd bridge-source
-          # Ensure you use the exact filename provided in your repo
           git apply ../this-repo/proton-bridge-arm64-linux.patch
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libsecret-1-dev pkg-config libfido2-dev
-          
-          # Install cross-compiler for arm64
-          if [ "${{ matrix.goarch }}" == "arm64" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-          fi
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -50,21 +38,16 @@ jobs:
           go-version: '1.24.0'
 
       - name: Build Proton Bridge
-        env:
-          GOOS: linux
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
-          CC: ${{ matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
         run: |
           cd bridge-source
-          # Try the standard make build first
+          # Since we are on a native ARM64 runner, just run the build command
+          # If 'make build-nogui' is missing, use 'make build' or 'go build'
           make build
-          # If 'build' creates a directory structure, locate your binary
-          # It is likely in ./cmd/bridge/ or similar, check with 'find . -name bridge'
-          cp ./cmd/bridge/bridge ../bridge-${{ matrix.arch }} || cp bridge ../bridge-${{ matrix.arch }}
+          # After building, find the binary and move it to the workspace root
+          find . -name bridge -type f -executable -exec cp {} ../bridge-arm64 \;
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bridge-${{ matrix.arch }}
-          path: bridge-${{ matrix.arch }}
+          name: bridge-arm64
+          path: bridge-arm64
