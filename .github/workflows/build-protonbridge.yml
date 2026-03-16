@@ -18,15 +18,21 @@ jobs:
             goarch: arm64
     
     steps:
-      - name: Checkout code
+      - name: Checkout main code
         uses: actions/checkout@v4
         with:
           repository: ProtonMail/proton-bridge
-          fetch-depth: 0
+          path: bridge-source
+
+      - name: Checkout local patch
+        uses: actions/checkout@v4
+        with:
+          path: this-repo
 
       - name: Apply patch
-        # Assumes arm64.patch is in the root of your local repository
-        run: git apply ./proton-bridge-arm64-linux.patch
+        run: |
+          cd bridge-source
+          git apply ../this-repo/proton-bridge-arm64-linux.patch
 
       - name: Install dependencies
         run: |
