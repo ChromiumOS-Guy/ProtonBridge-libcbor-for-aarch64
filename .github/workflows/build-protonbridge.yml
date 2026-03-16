@@ -26,7 +26,7 @@ jobs:
 
       - name: Apply patch
         # Assumes arm64.patch is in the root of your local repository
-        run: git apply ./arm64.patch
+        run: git apply ./proton-bridge-arm64-linux.patch
 
       - name: Install dependencies
         run: |
