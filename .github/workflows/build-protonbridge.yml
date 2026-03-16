@@ -55,7 +55,7 @@ jobs:
           cd bridge-source
           # Since we are on a native ARM64 runner, just run the build command
           # If 'make build-nogui' is missing, use 'make build' or 'go build'
-          make build
+          make build-nogui
           # After building, find the binary and move it to the workspace root
           find . -name bridge -type f -executable -exec cp {} ../bridge-arm64 \;
 
