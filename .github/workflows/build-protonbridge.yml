@@ -37,6 +37,19 @@ jobs:
         with:
           go-version: '1.24.0'
 
+      - name: Build and Install libcbor
+        run: |
+          # 1. Clone and build libcbor
+          git clone https://github.com/PJK/libcbor.git
+          cd libcbor
+          git checkout v0.11.0
+          cd ..
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON libcbor
+          make
+          sudo make install
+          # 2. Update the linker cache so the system finds the new library
+          sudo ldconfig
+
       - name: Build Proton Bridge
         run: |
           cd bridge-source
