@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Define the architectures to build
         include:
           - arch: amd64
             goarch: amd64
@@ -29,40 +28,40 @@ jobs:
         with:
           path: this-repo
 
-      - name: Apply patch
+      - name: Setup environment and apply patch
         run: |
           cd bridge-source
-          git apply ../this-repo/proton-bridge-arm64-linux.patch
+          # Ensure you use the exact filename provided in your repo
+          git apply ../this-repo/arm64.patch
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libsecret-1-dev pkg-config
+          # Install cross-compiler for arm64
+          sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.0' # Matches the requirement in BUILDS.md
+          go-version: '1.24.0'
 
-      - name: Build Proton Bridge (nogui)
+      - name: Build Proton Bridge
         env:
           GOOS: linux
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1 # Required for libsecret
-          # Ensure cross-compiler is used for CGO if necessary
+          CGO_ENABLED: 1
           CC: ${{ matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
         run: |
-          if [ "${{ matrix.goarch }}" == "arm64" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-          fi
-          make build-nogui
+          cd bridge-source
+          # Try the standard make build first
+          make build
+          # If 'build' creates a directory structure, locate your binary
+          # It is likely in ./cmd/bridge/ or similar, check with 'find . -name bridge'
+          cp ./cmd/bridge/bridge ../bridge-${{ matrix.arch }} || cp bridge ../bridge-${{ matrix.arch }}
 
-      - name: Rename and Upload Artifact
-        run: |
-          mkdir -p output
-          mv bridge output/bridge-${{ matrix.arch }}
-          
-      - uses: actions/upload-artifact@v4
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: bridge-${{ matrix.arch }}
-          path: output/bridge-${{ matrix.arch }}
+          path: bridge-${{ matrix.arch }}
