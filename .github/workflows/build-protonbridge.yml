@@ -43,8 +43,8 @@ jobs:
           git clone https://github.com/PJK/libcbor.git
           cd libcbor
           git checkout v0.11.0
-          cd ..
-          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON libcbor
+          mkdir build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON ..
           make
           sudo make install
           # 2. Update the linker cache so the system finds the new library
@@ -59,8 +59,29 @@ jobs:
           # After building, find the binary and move it to the workspace root
           find . -name bridge -type f -executable -exec cp {} ../bridge-arm64 \;
 
+      - name: Prepare and Package
+        run: |
+          # Create a deployment directory
+          mkdir -p deploy
+          
+          # Copy binaries (find them based on output path)
+          # Note: ensure these paths match your actual binary locations
+          find bridge-source -name "bridge" -type f -executable -exec cp {} deploy/bridge \;
+          find bridge-source -name "proton-bridge" -type f -executable -exec cp {} deploy/proton-bridge \;
+          
+          # Copy libcbor shared libraries
+          cp libcbor/build/src/libcbor.so* deploy/
+          
+          # Run patchelf
+          cd deploy
+          patchelf --add-rpath . bridge
+          patchelf --add-rpath . proton-bridge
+          
+          # Zip the contents
+          zip -r bridge-package.zip .
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bridge-arm64
-          path: bridge-arm64
+          name: bridge-arm64-package
+          path: deploy/bridge-package.zip
