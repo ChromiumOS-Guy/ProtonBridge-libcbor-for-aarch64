@@ -1,0 +1,92 @@
+diff --git a/internal/frontend/bridge-gui/FindQt.cmake b/internal/frontend/bridge-gui/FindQt.cmake
+index 351d7b7b..76f323c9 100644
+--- a/internal/frontend/bridge-gui/FindQt.cmake
++++ b/internal/frontend/bridge-gui/FindQt.cmake
+@@ -5,4 +5,17 @@ endif()
+ message(STATUS "Found qmake at ${QMAKE_EXE}")
+ execute_process(COMMAND "${QMAKE_EXE}" -query QT_INSTALL_PREFIX OUTPUT_VARIABLE QT_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+ 
++execute_process(
++  COMMAND "${QMAKE_EXE}" -query QT_INSTALL_QML
++  OUTPUT_VARIABLE QT_QML_DIR
++  OUTPUT_STRIP_TRAILING_WHITESPACE
++)
++
++execute_process(
++  COMMAND "${QMAKE_EXE}" -query QT_INSTALL_PLUGINS
++  OUTPUT_VARIABLE QT_PLUGINS_DIR
++  OUTPUT_STRIP_TRAILING_WHITESPACE
++)
++
++
+ set(CMAKE_PREFIX_PATH  ${QT_DIR} ${CMAKE_PREFIX_PATH})
+diff --git a/internal/frontend/bridge-gui/bridge-gui/DeployLinux.cmake b/internal/frontend/bridge-gui/bridge-gui/DeployLinux.cmake
+index c55cf3ca..819462dd 100644
+--- a/internal/frontend/bridge-gui/bridge-gui/DeployLinux.cmake
++++ b/internal/frontend/bridge-gui/bridge-gui/DeployLinux.cmake
+@@ -22,8 +22,21 @@ cmake_minimum_required(VERSION 3.22)
+ #*****************************************************************************************************************************************************
+ 
+ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_BINDIR}" "${CMAKE_INSTALL_LIBDIR}" "." "../lib")
+-install(DIRECTORY "${QT_DIR}/qml" "${QT_DIR}/plugins"
+-        DESTINATION "${CMAKE_INSTALL_PREFIX}")
++
++# Prefer qmake-reported paths (Fedora/etc), fall back to old layout
++set(_qml_dir "${QT_QML_DIR}")
++set(_plugins_dir "${QT_PLUGINS_DIR}")
++
++if(NOT EXISTS "${_qml_dir}")
++  set(_qml_dir "${QT_DIR}/qml")
++endif()
++if(NOT EXISTS "${_plugins_dir}")
++  set(_plugins_dir "${QT_DIR}/plugins")
++endif()
++
++install(DIRECTORY "${_qml_dir}" "${_plugins_dir}"
++        DESTINATION "${CMAKE_INSTALL_PREFIX}"
++        USE_SOURCE_PERMISSIONS)
+ 
+ macro( AppendLib LIB_NAME HINT_PATH)
+     string(TOUPPER ${LIB_NAME} UP_NAME)
+@@ -54,9 +67,9 @@ AppendQt6Lib("libQt6Gui.so.6")
+ AppendQt6Lib("libQt6Core.so.6")
+ AppendQt6Lib("libQt6QuickTemplates2.so.6")
+ AppendQt6Lib("libQt6DBus.so.6")
+-AppendQt6Lib("libicui18n.so.73")
+-AppendQt6Lib("libicuuc.so.73")
+-AppendQt6Lib("libicudata.so.73")
++AppendQt6Lib("libicui18n.so.76")
++AppendQt6Lib("libicuuc.so.76")
++AppendQt6Lib("libicudata.so.76")
+ AppendQt6Lib("libQt6XcbQpa.so.6")
+ AppendQt6Lib("libQt6WaylandClient.so.6")
+ AppendQt6Lib("libQt6WlShellIntegration.so.6")
+diff --git a/internal/frontend/bridge-gui/bridge-gui/build.sh b/internal/frontend/bridge-gui/bridge-gui/build.sh
+index bcd56009..867fd350 100755
+--- a/internal/frontend/bridge-gui/bridge-gui/build.sh
++++ b/internal/frontend/bridge-gui/bridge-gui/build.sh
+@@ -59,7 +59,7 @@ BRIDGE_REVISION=$(git rev-parse --short=10 HEAD)
+ BRIDGE_TAG=${BRIDGE_TAG:-"NOTAG"}
+ BRIDGE_DSN_SENTRY=${BRIDGE_DSN_SENTRY}
+ BRIDGE_BUILD_TIME=${BRIDGE_BUILD_TIME}
+-BRIDGE_BUILD_ENV= ${BRIDGE_BUILD_ENV:-"dev"}
++BRIDGE_BUILD_ENV=${BRIDGE_BUILD_ENV:-"dev"}
+ git submodule update --init --recursive ${VCPKG_ROOT}
+ check_exit "Failed to initialize vcpkg as a submodule."
+ 
+@@ -78,8 +78,13 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
+     ${VCPKG_EXE} install sentry-native:x64-osx-min-10-15 grpc:x64-osx-min-10-15 --overlay-triplets=vcpkg/triplets --clean-after-build
+     check_exit "Failed installing gRPC for macOS / Intel x64"
+ elif [[ "$OSTYPE" == "linux"* ]]; then
+-    ${VCPKG_EXE} install sentry-native:x64-linux grpc:x64-linux --clean-after-build
+-    check_exit "Failed installing gRPC for Linux / Intel x64"
++    case "$(uname -m)" in
++      aarch64|arm64) VCPKG_TRIPLET="arm64-linux" ;;
++      x86_64|amd64)  VCPKG_TRIPLET="x64-linux" ;;
++      *) echo "Unsupported arch: $(uname -m)" ; exit 1 ;;
++    esac
++    ${VCPKG_EXE} install sentry-native:${VCPKG_TRIPLET} grpc:${VCPKG_TRIPLET} --clean-after-build
++    check_exit "Failed installing gRPC for Linux / ${VCPKG_TRIPLET}"
+ else
+     echo "For Windows, use the build.ps1 Powershell script."
+     exit 1
