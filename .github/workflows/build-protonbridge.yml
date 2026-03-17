@@ -39,7 +39,7 @@ jobs:
 
       - name: Build and Install libcbor
         run: |
-          # 1. Clone and build libcbor
+          # Clone and build libcbor
           git clone https://github.com/PJK/libcbor.git
           cd libcbor
           git checkout v0.11.0
@@ -47,16 +47,15 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON ..
           make
           sudo make install
-          # 2. Update the linker cache so the system finds the new library
+          # Update the linker cache so the system finds the new library
           sudo ldconfig
 
       - name: Build Proton Bridge
         run: |
           cd bridge-source
-          # Since we are on a native ARM64 runner, just run the build command
-          # If 'make build-nogui' is missing, use 'make build' or 'go build'
+          # Since we are on a native ARM64 runner, just run the build command.
           make build-nogui
-          # After building, find the binary and move it to the workspace root
+          # After building, find the binary and move it to the workspace root.
           find . -name bridge -type f -executable -exec cp {} ../bridge-arm64 \;
 
       - name: Prepare and Package
@@ -65,7 +64,6 @@ jobs:
           mkdir -p deploy
           
           # Copy binaries (find them based on output path)
-          # Note: ensure these paths match your actual binary locations
           find bridge-source -name "bridge" -type f -executable -exec cp {} deploy/bridge \;
           find bridge-source -name "proton-bridge" -type f -executable -exec cp {} deploy/proton-bridge \;
           
